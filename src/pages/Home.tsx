@@ -53,7 +53,6 @@ const FamilyDataViewer = memo(
 
     const columns: ColumnDef<any>[] = useMemo(() => {
       return [
-        { colorder: 0, name: "id", typename: "number" },
         ...currentFamily!.fields.filter((f) =>
           (!!displayColumns?.length
             ? displayColumns
@@ -100,7 +99,13 @@ const FamilyDataViewer = memo(
             {table.getHeaderGroups().map((hg) => (
               <Table.Tr key={hg.id}>
                 <Table.Th className="p-2 border-b border-gray-200 sticky left-0 bg-[var(--mantine-color-body)]">
-                  No.
+                  <div className="w-12">No.</div>
+                </Table.Th>
+                <Table.Th className="p-2 border-b border-gray-200 sticky left-[68px] bg-[var(--mantine-color-body)]">
+                  <div className="flex flex-col items-start gap-1 min-w-24">
+                    <span className="font-bold">ID</span>
+                    <span className="font-bold text-gray-400">number</span>
+                  </div>
                 </Table.Th>
                 {hg.headers.map((header) => (
                   <Table.Th
@@ -125,6 +130,9 @@ const FamilyDataViewer = memo(
               <Table.Tr key={row.id}>
                 <Table.Td className="p-2 border-b border-gray-200 font-bold sticky left-0 bg-[var(--mantine-color-body)]">
                   {row.index + 1}
+                </Table.Td>
+                <Table.Td className="p-2 border-b border-gray-200 font-bold sticky left-[68px] bg-[var(--mantine-color-body)]">
+                  {row.original.id}
                 </Table.Td>
                 {row.getVisibleCells().map((cell) => (
                   <Table.Td
