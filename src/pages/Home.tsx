@@ -1,6 +1,6 @@
 import { Layout } from "../components/layouts/Layout";
 
-import React, { memo, useMemo, useRef, useState } from "react";
+import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   ColumnDef,
   flexRender,
@@ -143,9 +143,15 @@ export const Home = () => {
   const [debouncedFilter] = useDebouncedValue(filter, 200);
   const queryStringRef = useRef<HTMLInputElement>(null);
   const [displayColumns, setDisplayColumns] = useState<string[]>(
-    currentFamily?.fields.map((f) => f.name) ?? []
+    currentFamily?.fields?.map((f) => f.name) ?? []
   );
+
+  const [debouncedDisplayColumns] = useDebouncedValue(displayColumns, 500);
   const [opened, { open, close }] = useDisclosure(false);
+
+  useEffect(() => {
+    setDisplayColumns(currentFamily?.fields?.map((f) => f.name) ?? []);
+  }, [currentFamily]);
 
   return (
     <Layout>
@@ -175,7 +181,7 @@ export const Home = () => {
           </div>
           <FamilyDataViewer
             filter={debouncedFilter}
-            displayColumns={displayColumns}
+            displayColumns={debouncedDisplayColumns}
           />
         </div>
       )}
@@ -192,6 +198,19 @@ export const Home = () => {
         }}
       >
         <div className="flex flex-col gap-2">
+          <Checkbox
+            label="All"
+            checked={displayColumns.length === currentFamily?.fields?.length}
+            onChange={(e) => {
+              if (e.target.checked) {
+                setDisplayColumns(
+                  currentFamily?.fields?.map((f) => f.name) ?? []
+                );
+              } else {
+                setDisplayColumns([]);
+              }
+            }}
+          />
           {currentFamily?.fields
             ?.sort((a, b) => (a.colorder ?? 10000) - (b.colorder ?? 10000))
             .map((field) => (
