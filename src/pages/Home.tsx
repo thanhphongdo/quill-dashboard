@@ -19,7 +19,12 @@ import {
   Title,
 } from "@mantine/core";
 import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
-import { IconColumns, IconSearch } from "@tabler/icons-react";
+import {
+  IconColumns,
+  IconEdit,
+  IconSearch,
+  IconTrash,
+} from "@tabler/icons-react";
 
 const FamilyDataViewer = memo(
   ({
@@ -89,12 +94,12 @@ const FamilyDataViewer = memo(
     });
 
     return (
-      <div className="p-4 max-w-full overflow-auto">
+      <div className="py-0 h-[calc(100vh_-_144px)] max-w-full overflow-auto">
         <Table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <Table.Thead>
+          <Table.Thead className="sticky top-0 bg-[var(--mantine-color-body)]">
             {table.getHeaderGroups().map((hg) => (
               <Table.Tr key={hg.id}>
-                <Table.Th className="p-2 border-b border-gray-200">
+                <Table.Th className="p-2 border-b border-gray-200 sticky left-0 bg-[var(--mantine-color-body)]">
                   No.
                 </Table.Th>
                 {hg.headers.map((header) => (
@@ -108,6 +113,9 @@ const FamilyDataViewer = memo(
                     )}
                   </Table.Th>
                 ))}
+                <Table.Th className="p-2 border-b border-gray-200 sticky right-0 bg-[var(--mantine-color-body)]">
+                  Actions
+                </Table.Th>
               </Table.Tr>
             ))}
           </Table.Thead>
@@ -115,7 +123,7 @@ const FamilyDataViewer = memo(
           <Table.Tbody>
             {table.getRowModel().rows.map((row) => (
               <Table.Tr key={row.id}>
-                <Table.Td className="p-2 border-b border-gray-200 font-bold">
+                <Table.Td className="p-2 border-b border-gray-200 font-bold sticky left-0 bg-[var(--mantine-color-body)]">
                   {row.index + 1}
                 </Table.Td>
                 {row.getVisibleCells().map((cell) => (
@@ -126,6 +134,12 @@ const FamilyDataViewer = memo(
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </Table.Td>
                 ))}
+                <Table.Td className="p-2 border-b border-gray-200 sticky !right-0 bg-[var(--mantine-color-body)]">
+                  <div className="flex gap-2">
+                    <IconEdit className="cursor-pointer text-orange-300" />
+                    <IconTrash className="cursor-pointer text-red-500" />
+                  </div>
+                </Table.Td>
               </Table.Tr>
             ))}
           </Table.Tbody>
@@ -181,10 +195,12 @@ export const Home = () => {
               <IconColumns />
             </Button>
           </div>
-          <FamilyDataViewer
-            filter={debouncedFilter}
-            displayColumns={debouncedDisplayColumns}
-          />
+          <div className="p-4">
+            <FamilyDataViewer
+              filter={debouncedFilter}
+              displayColumns={debouncedDisplayColumns}
+            />
+          </div>
         </div>
       )}
       <Modal
