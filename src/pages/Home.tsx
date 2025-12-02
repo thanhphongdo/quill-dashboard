@@ -19,7 +19,7 @@ import {
   Title,
 } from "@mantine/core";
 import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
-import { IconColumns } from "@tabler/icons-react";
+import { IconColumns, IconSearch } from "@tabler/icons-react";
 
 const FamilyDataViewer = memo(
   ({
@@ -157,27 +157,29 @@ export const Home = () => {
     <Layout>
       {!!currentFamily?.fields?.length && (
         <div className="flex flex-col gap-4">
-          <div className="flex gap-4">
-            <Input
-              placeholder="Query String"
-              className="w-96"
-              ref={queryStringRef}
-            />
-            <Button
-              onClick={() => {
-                fetchData(queryStringRef.current?.value ?? "");
-              }}
-            >
-              Apply
-            </Button>
-            <Button onClick={open}>
-              <IconColumns />
-            </Button>
-            <div className="flex-1"></div>
+          <div className="flex gap-4 items-center px-4">
+            <div className="flex-1">
+              <Title order={3}>{currentFamily?.displaynames}</Title>
+            </div>
             <Input
               placeholder="Filter"
               onChange={(e) => setFilter(e.target.value)}
             />
+            <Input
+              placeholder="Fill Query String and Press Enter"
+              className="w-96"
+              ref={queryStringRef}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  fetchData(queryStringRef.current?.value ?? "");
+                }
+              }}
+              rightSection={<IconSearch />}
+            />
+
+            <Button onClick={open}>
+              <IconColumns />
+            </Button>
           </div>
           <FamilyDataViewer
             filter={debouncedFilter}
