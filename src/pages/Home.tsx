@@ -1,6 +1,13 @@
 import { Layout } from "../components/layouts/Layout";
 
-import React, { memo, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ColumnDef,
   flexRender,
@@ -13,6 +20,7 @@ import {
   Checkbox,
   Group,
   Input,
+  JsonInput,
   Modal,
   ScrollArea,
   Table,
@@ -22,9 +30,15 @@ import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
 import {
   IconColumns,
   IconEdit,
+  IconPlus,
   IconSearch,
   IconTrash,
 } from "@tabler/icons-react";
+import { notifications } from "@mantine/notifications";
+import { update } from "../service/update";
+import { create } from "../service/create";
+import { PortalSlot } from "../components/PortalSlot";
+import { deleteFamily } from "../service/delete";
 
 const FamilyDataViewer = memo(
   ({
@@ -34,10 +48,15 @@ const FamilyDataViewer = memo(
     filter?: string;
     displayColumns?: string[];
   }) => {
+    const apiUrl = useQuillDashboardStore((state) => state.apiUrl);
     const currentFamily = useQuillDashboardStore(
       (state) => state.currentFamily
     );
     const currentData = useQuillDashboardStore((state) => state.currentData);
+    const setCurrentData = useQuillDashboardStore(
+      (state) => state.setCurrentData
+    );
+    const fetchData = useQuillDashboardStore((state) => state.fetchData);
     const data = useMemo(() => {
       const filterLower = filter?.toLowerCase() ?? "";
 
@@ -92,6 +111,29 @@ const FamilyDataViewer = memo(
       getCoreRowModel: getCoreRowModel(),
     });
 
+    const [selectedData, setSelectedData] = useState<any>(null);
+
+    const [
+      openedUpdateModal,
+      { open: openUpdateModal, close: closeUpdateModal },
+    ] = useDisclosure(false);
+    const [
+      openedCreateModal,
+      { open: openCreateModal, close: closeCreateModal },
+    ] = useDisclosure(false);
+    const [
+      openedDeleteModal,
+      { open: openDeleteModal, close: closeDeleteModal },
+    ] = useDisclosure(false);
+
+    const jsonInputUpdateRef = useRef<HTMLTextAreaElement>(null);
+    const jsonInputCreateRef = useRef<HTMLTextAreaElement>(null);
+
+    const onUpdate = useCallback((data: any) => {
+      setSelectedData(data);
+      openUpdateModal();
+    }, []);
+
     return (
       <div className="py-0 h-[calc(100vh_-_144px)] max-w-full overflow-auto">
         <Table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -144,14 +186,219 @@ const FamilyDataViewer = memo(
                 ))}
                 <Table.Td className="p-2 border-b border-gray-200 sticky !right-0 bg-[var(--mantine-color-body)]">
                   <div className="flex gap-2">
-                    <IconEdit className="cursor-pointer text-orange-300" />
-                    <IconTrash className="cursor-pointer text-red-500" />
+                    <IconEdit
+                      className="cursor-pointer text-orange-300"
+                      onClick={() => {
+                        onUpdate(row.original);
+                      }}
+                    />
+                    <IconTrash
+                      className="cursor-pointer text-red-500"
+                      onClick={() => {
+                        openDeleteModal();
+                        setSelectedData(row.original);
+                      }}
+                    />
                   </div>
                 </Table.Td>
               </Table.Tr>
             ))}
           </Table.Tbody>
         </Table>
+        <Modal
+          size={"lg"}
+          opened={openedUpdateModal}
+          onClose={closeUpdateModal}
+          title={
+            <Title order={4}>
+              <div className="flex gap-1">
+                <span>Edit </span>
+                <span className="font-bold text-orange-500">
+                  {currentFamily?.displaynames}
+                </span>
+                <span> - </span>
+                <span>ID:</span>
+                <span className="font-bold text-orange-500">
+                  {selectedData?.id}
+                </span>
+              </div>
+            </Title>
+          }
+        >
+          <div className="flex flex-col gap-2">
+            <JsonInput
+              ref={jsonInputUpdateRef}
+              styles={{
+                input: {
+                  height: "500px",
+                },
+              }}
+              minRows={20}
+              defaultValue={JSON.stringify(
+                { ...selectedData, id: undefined },
+                null,
+                4
+              )}
+            />
+          </div>
+
+          <Group
+            className="sticky bottom-0 bg-[var(--mantine-color-body)] py-4"
+            mt="lg"
+            justify="flex-end"
+          >
+            <Button
+              color="green"
+              onClick={async () => {
+                if (!jsonInputUpdateRef.current) return;
+                update({
+                  apiUrl,
+                  name: currentFamily?.name ?? "",
+                  id: selectedData.id,
+                  params: jsonInputUpdateRef.current.value,
+                  callback: (updatedData) => {
+                    setCurrentData(
+                      currentData?.map((item) => {
+                        if (item.id === selectedData.id) {
+                          return {
+                            ...item,
+                            ...updatedData,
+                          };
+                        }
+                        return item;
+                      }) ?? []
+                    );
+                    closeUpdateModal();
+                  },
+                  notifications,
+                });
+              }}
+            >
+              Save
+            </Button>
+            <Button color="red" onClick={closeUpdateModal}>
+              Close
+            </Button>
+          </Group>
+        </Modal>
+
+        <PortalSlot slotId="open-create-modal">
+          <Button onClick={openCreateModal} color="green">
+            <IconPlus />
+          </Button>
+        </PortalSlot>
+
+        <Modal
+          size={"lg"}
+          opened={openedCreateModal}
+          onClose={closeCreateModal}
+          title={
+            <Title order={4}>
+              <div className="flex gap-1">
+                <span>Create new </span>
+                <span className="font-bold text-orange-500">
+                  {currentFamily?.displaynames}
+                </span>
+              </div>
+            </Title>
+          }
+        >
+          <div className="flex flex-col gap-2">
+            <JsonInput
+              ref={jsonInputCreateRef}
+              styles={{
+                input: {
+                  height: "500px",
+                },
+              }}
+              minRows={20}
+              defaultValue={JSON.stringify(
+                { ...selectedData, id: undefined },
+                null,
+                4
+              )}
+            />
+          </div>
+
+          <Group
+            className="sticky bottom-0 bg-[var(--mantine-color-body)] py-4"
+            mt="lg"
+            justify="flex-end"
+          >
+            <Button
+              color="green"
+              onClick={async () => {
+                if (!jsonInputCreateRef.current) return;
+                create({
+                  apiUrl,
+                  name: currentFamily?.name ?? "",
+                  params: jsonInputCreateRef.current.value,
+                  callback: () => {
+                    fetchData("");
+                    closeCreateModal();
+                  },
+                  notifications,
+                });
+              }}
+            >
+              Save
+            </Button>
+            <Button color="red" onClick={closeCreateModal}>
+              Close
+            </Button>
+          </Group>
+        </Modal>
+        <Modal
+          size={"lg"}
+          opened={openedDeleteModal}
+          onClose={closeDeleteModal}
+          title={
+            <Title order={4}>
+              <div className="flex gap-1">
+                <span>Delete </span>
+                <span className="font-bold text-orange-500">
+                  {currentFamily?.displaynames}
+                </span>
+                <span> - </span>
+                <span>ID:</span>
+                <span className="font-bold text-orange-500">
+                  {selectedData?.id}
+                </span>
+              </div>
+            </Title>
+          }
+        >
+          <div className="flex flex-col gap-2">Are you sure to delete?</div>
+
+          <Group
+            className="sticky bottom-0 bg-[var(--mantine-color-body)] py-4"
+            mt="lg"
+            justify="flex-end"
+          >
+            <Button
+              color="green"
+              onClick={async () => {
+                deleteFamily({
+                  apiUrl,
+                  name: currentFamily?.name ?? "",
+                  id: selectedData.id,
+                  callback: (id) => {
+                    setCurrentData(
+                      currentData?.filter((item) => item.id !== id) ?? []
+                    );
+                    closeDeleteModal();
+                  },
+                  notifications,
+                });
+              }}
+            >
+              Confirm
+            </Button>
+            <Button color="red" onClick={closeDeleteModal}>
+              Close
+            </Button>
+          </Group>
+        </Modal>
       </div>
     );
   }
@@ -159,6 +406,7 @@ const FamilyDataViewer = memo(
 
 export const Home = () => {
   const currentFamily = useQuillDashboardStore((state) => state.currentFamily);
+  const apiUrl = useQuillDashboardStore((state) => state.apiUrl);
   const fetchData = useQuillDashboardStore((state) => state.fetchData);
 
   const [filter, setFilter] = useState("");
@@ -202,6 +450,7 @@ export const Home = () => {
             <Button onClick={open}>
               <IconColumns />
             </Button>
+            <div id="open-create-modal"></div>
           </div>
           <div className="p-4">
             <FamilyDataViewer

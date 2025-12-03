@@ -7,6 +7,7 @@ export interface QuillDashboardListStore extends QuillDashboard {
   setFamilies: (families: Family[]) => void;
   setCurrentFamily: (family: Family) => void;
   fetchData: (queryString: string) => Promise<void>;
+  setCurrentData: (data: any[]) => void;
 }
 
 export const useQuillDashboardStore = create<QuillDashboardListStore>()(
@@ -24,6 +25,7 @@ export const useQuillDashboardStore = create<QuillDashboardListStore>()(
         const data = await res.json();
         set({ currentData: data });
       },
+      setCurrentData: (data) => set({ currentData: data }),
     }),
     {
       name: "quill-dashboard-storage",
