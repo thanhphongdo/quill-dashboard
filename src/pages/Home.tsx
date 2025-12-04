@@ -52,6 +52,7 @@ const FamilyDataViewer = memo(
     const currentFamily = useQuillDashboardStore(
       (state) => state.currentFamily
     );
+    const families = useQuillDashboardStore((state) => state.families);
     const currentData = useQuillDashboardStore((state) => state.currentData);
     const setCurrentData = useQuillDashboardStore(
       (state) => state.setCurrentData
@@ -82,12 +83,33 @@ const FamilyDataViewer = memo(
         .sort((a, b) => (a.colorder ?? 10000) - (b.colorder ?? 10000))
         .map((field) => ({
           accessorKey: field.name,
-          header: () => (
-            <div className="flex flex-col items-start gap-1 min-w-48">
-              <span className="font-bold">{field.name}</span>
-              <span className="font-bold text-gray-400">{field.typename}</span>
-            </div>
-          ),
+          header: () => {
+            const target = (families ?? []).find(
+              (f) => f.id === field.target
+            )?.name;
+            return (
+              <div className="flex flex-col items-start gap-1 min-w-52">
+                <div>
+                  <span className="font-bold">{field.name}</span>
+                  {field.typename === "pointer" && (
+                    <span className="text-xs">
+                      {` → ${field.target} | ${target}`}
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-1">
+                  <span className="font-bold text-gray-400">
+                    {field.typename}
+                    {field.nullable && "?"}
+                  </span>
+                  <span>|</span>
+                  <span className="font-bold text-gray-400">
+                    {field.description}
+                  </span>
+                </div>
+              </div>
+            );
+          },
           cell: ({ getValue }) => (
             <div>
               {getValue() === null && <span className="italic">-</span>}
