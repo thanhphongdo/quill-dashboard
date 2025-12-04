@@ -31,6 +31,7 @@ import {
   IconColumns,
   IconEdit,
   IconPlus,
+  IconRefresh,
   IconSearch,
   IconTrash,
 } from "@tabler/icons-react";
@@ -472,6 +473,9 @@ export const Home = () => {
             <Button onClick={open}>
               <IconColumns />
             </Button>
+            <Button color="green" onClick={() => fetchData("")}>
+              <IconRefresh />
+            </Button>
             <div id="open-create-modal"></div>
           </div>
           <div className="p-4">
@@ -513,7 +517,13 @@ export const Home = () => {
             .map((field) => (
               <Checkbox
                 key={field.name}
-                label={field.name}
+                label={
+                  <div className="flex gap-1">
+                    <span className="font-bold">{field.name}</span>
+                    <span>|</span>
+                    <span className="text-red-500">{field.description}</span>
+                  </div>
+                }
                 checked={displayColumns.includes(field.name)}
                 onChange={(e) => {
                   if (e.target.checked) {
