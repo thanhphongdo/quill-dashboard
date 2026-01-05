@@ -40,6 +40,7 @@ import { update } from "../service/update";
 import { create } from "../service/create";
 import { PortalSlot } from "../components/PortalSlot";
 import { deleteFamily } from "../service/delete";
+import { useParams } from "react-router";
 
 const FamilyDataViewer = memo(
   ({
@@ -431,6 +432,10 @@ export const Home = () => {
   const currentFamily = useQuillDashboardStore((state) => state.currentFamily);
   const apiUrl = useQuillDashboardStore((state) => state.apiUrl);
   const fetchData = useQuillDashboardStore((state) => state.fetchData);
+  const setCurrentFamily = useQuillDashboardStore(
+    (state) => state.setCurrentFamily
+  );
+  const families = useQuillDashboardStore((state) => state.families);
 
   const [filter, setFilter] = useState("");
   const [debouncedFilter] = useDebouncedValue(filter, 200);
@@ -441,6 +446,22 @@ export const Home = () => {
 
   const [debouncedDisplayColumns] = useDebouncedValue(displayColumns, 500);
   const [opened, { open, close }] = useDisclosure(false);
+
+  const { familyId } = useParams<{ familyId: string }>();
+  useEffect(() => {
+    if (familyId && families.length) {
+      fetchData(queryStringRef.current?.value ?? "", familyId);
+      setCurrentFamily(families.find((f) => f.id === familyId)!);
+      fetch(`${apiUrl}/families/${familyId}/fields`).then(async (res) => {
+        const fields = await res.json();
+        setCurrentFamily({
+          ...currentFamily!,
+          fields,
+        });
+      });
+    }
+  }, [familyId, families]);
+  useEffect(() => {}, [families]);
 
   useEffect(() => {
     setDisplayColumns(currentFamily?.fields?.map((f) => f.name) ?? []);
@@ -464,7 +485,7 @@ export const Home = () => {
               ref={queryStringRef}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  fetchData(queryStringRef.current?.value ?? "");
+                  fetchData(queryStringRef.current?.value ?? "", familyId);
                 }
               }}
               rightSection={<IconSearch />}

@@ -19,10 +19,8 @@ export function Layout({ children }: PropsWithChildren) {
   const navigate = useNavigate();
   const apiUrl = useQuillDashboardStore((state) => state.apiUrl);
   const families = useQuillDashboardStore((state) => state.families);
-  const currentFamily = useQuillDashboardStore((state) => state.currentFamily);
   const setApiUrl = useQuillDashboardStore((state) => state.setApiUrl);
   const setFamilies = useQuillDashboardStore((state) => state.setFamilies);
-  const fetchData = useQuillDashboardStore((state) => state.fetchData);
   const setCurrentFamily = useQuillDashboardStore(
     (state) => state.setCurrentFamily
   );
@@ -39,10 +37,6 @@ export function Layout({ children }: PropsWithChildren) {
       setFamilies(await res.json());
     });
   }, [apiUrl]);
-
-  useEffect(() => {
-    fetchData("");
-  }, [currentFamily]);
 
   return (
     <AppShell
@@ -106,16 +100,8 @@ export function Layout({ children }: PropsWithChildren) {
                 order={4}
                 onClick={async () => {
                   setCurrentFamily(family);
-                  fetch(`${apiUrl}/families/${family.id}/fields`).then(
-                    async (res) => {
-                      const fields = await res.json();
-                      setCurrentFamily({
-                        ...family,
-                        fields,
-                      });
-                      // fetchData("");
-                    }
-                  );
+                  navigate(`/${family.id}`);
+                  close();
                 }}
               >
                 <span>{family.displaynames}</span>

@@ -5,4 +5,8 @@ export const routes = createBrowserRouter([
     path: "/",
     children: [{ index: true, element: <Home /> }],
   },
+  {
+    path: "/:familyId",
+    children: [{ index: true, element: <Home /> }],
+  },
 ]);
