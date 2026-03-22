@@ -16,15 +16,20 @@ import {
 } from "@tanstack/react-table";
 import { useQuillDashboardStore } from "../stores/store";
 import {
+  ActionIcon,
+  Box,
   Button,
   Checkbox,
   Group,
   Input,
   JsonInput,
+  LoadingOverlay,
   Modal,
   ScrollArea,
   Table,
+  Tabs,
   Title,
+  Tooltip,
 } from "@mantine/core";
 import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
 import {
@@ -34,13 +39,14 @@ import {
   IconRefresh,
   IconSearch,
   IconTrash,
+  IconX,
 } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { update } from "../service/update";
 import { create } from "../service/create";
 import { PortalSlot } from "../components/PortalSlot";
 import { deleteFamily } from "../service/delete";
-import { useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 
 const FamilyDataViewer = memo(
   ({
@@ -52,12 +58,12 @@ const FamilyDataViewer = memo(
   }) => {
     const apiUrl = useQuillDashboardStore((state) => state.apiUrl);
     const currentFamily = useQuillDashboardStore(
-      (state) => state.currentFamily
+      (state) => state.currentFamily,
     );
     const families = useQuillDashboardStore((state) => state.families);
     const currentData = useQuillDashboardStore((state) => state.currentData);
     const setCurrentData = useQuillDashboardStore(
-      (state) => state.setCurrentData
+      (state) => state.setCurrentData,
     );
     const fetchData = useQuillDashboardStore((state) => state.fetchData);
     const data = useMemo(() => {
@@ -79,7 +85,7 @@ const FamilyDataViewer = memo(
           (!!displayColumns?.length
             ? displayColumns
             : currentFamily!.fields.map((f) => f.name)
-          )?.includes(f.name)
+          )?.includes(f.name),
         ),
       ]
         .sort((a, b) => (a.colorder ?? 10000) - (b.colorder ?? 10000))
@@ -87,7 +93,7 @@ const FamilyDataViewer = memo(
           accessorKey: field.name,
           header: () => {
             const target = (families ?? []).find(
-              (f) => f.id === field.target
+              (f) => f.id === field.target,
             )?.name;
             return (
               <div className="flex flex-col items-start gap-1 min-w-52">
@@ -180,7 +186,7 @@ const FamilyDataViewer = memo(
                   >
                     {flexRender(
                       header.column.columnDef.header,
-                      header.getContext()
+                      header.getContext(),
                     )}
                   </Table.Th>
                 ))}
@@ -261,7 +267,7 @@ const FamilyDataViewer = memo(
               defaultValue={JSON.stringify(
                 { ...selectedData, id: undefined },
                 null,
-                4
+                4,
               )}
             />
           </div>
@@ -290,7 +296,7 @@ const FamilyDataViewer = memo(
                           };
                         }
                         return item;
-                      }) ?? []
+                      }) ?? [],
                     );
                     closeUpdateModal();
                   },
@@ -339,7 +345,7 @@ const FamilyDataViewer = memo(
               defaultValue={JSON.stringify(
                 { ...selectedData, id: undefined },
                 null,
-                4
+                4,
               )}
             />
           </div>
@@ -408,7 +414,7 @@ const FamilyDataViewer = memo(
                   id: selectedData.id,
                   callback: (id) => {
                     setCurrentData(
-                      currentData?.filter((item) => item.id !== id) ?? []
+                      currentData?.filter((item) => item.id !== id) ?? [],
                     );
                     closeDeleteModal();
                   },
@@ -425,87 +431,242 @@ const FamilyDataViewer = memo(
         </Modal>
       </div>
     );
-  }
+  },
 );
 
 export const Home = () => {
+  const navigate = useNavigate();
   const currentFamily = useQuillDashboardStore((state) => state.currentFamily);
   const apiUrl = useQuillDashboardStore((state) => state.apiUrl);
   const fetchData = useQuillDashboardStore((state) => state.fetchData);
   const setCurrentFamily = useQuillDashboardStore(
-    (state) => state.setCurrentFamily
+    (state) => state.setCurrentFamily,
+  );
+  const setCurrentData = useQuillDashboardStore(
+    (state) => state.setCurrentData,
   );
   const families = useQuillDashboardStore((state) => state.families);
+  const familyTabIds = useQuillDashboardStore((state) => state.familyTabIds);
+  const addFamilyTab = useQuillDashboardStore((state) => state.addFamilyTab);
+  const removeFamilyTab = useQuillDashboardStore(
+    (state) => state.removeFamilyTab,
+  );
+  const clearFamilyTabs = useQuillDashboardStore(
+    (state) => state.clearFamilyTabs,
+  );
 
   const [filter, setFilter] = useState("");
   const [debouncedFilter] = useDebouncedValue(filter, 200);
   const queryStringRef = useRef<HTMLInputElement>(null);
   const [displayColumns, setDisplayColumns] = useState<string[]>(
-    currentFamily?.fields?.map((f) => f.name) ?? []
+    currentFamily?.fields?.map((f) => f.name) ?? [],
   );
 
   const [debouncedDisplayColumns] = useDebouncedValue(displayColumns, 500);
   const [opened, { open, close }] = useDisclosure(false);
+  const [familyViewLoading, setFamilyViewLoading] = useState(false);
 
   const { familyId } = useParams<{ familyId: string }>();
   useEffect(() => {
-    if (familyId && families.length) {
-      fetchData(queryStringRef.current?.value ?? "", familyId);
-      setCurrentFamily(families.find((f) => f.id === familyId)!);
-      fetch(`${apiUrl}/families/${familyId}/fields`).then(async (res) => {
-        const fields = await res.json();
-        setCurrentFamily({
-          ...currentFamily!,
-          fields,
-        });
-      });
+    if (familyId) {
+      addFamilyTab(familyId);
     }
-  }, [familyId, families]);
-  useEffect(() => {}, [families]);
+  }, [familyId, addFamilyTab]);
+
+  useEffect(() => {
+    if (!familyId || !families.length) {
+      setFamilyViewLoading(false);
+      return;
+    }
+
+    const family = families.find((f) => f.id === familyId);
+    if (!family) {
+      setFamilyViewLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setFamilyViewLoading(true);
+
+    const load = async () => {
+      try {
+        await fetchData(queryStringRef.current?.value ?? "", familyId);
+        const res = await fetch(`${apiUrl}/families/${familyId}/fields`);
+        const fields = await res.json();
+        if (cancelled) return;
+        setCurrentFamily({ ...family, fields });
+      } finally {
+        if (!cancelled) {
+          setFamilyViewLoading(false);
+        }
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [familyId, families, apiUrl, fetchData, setCurrentFamily]);
+
+  const closeFamilyTab = useCallback(
+    (e: React.MouseEvent, id: string) => {
+      e.stopPropagation();
+      const idx = familyTabIds.indexOf(id);
+      const next = familyTabIds.filter((t) => t !== id);
+      removeFamilyTab(id);
+      if (familyId === id) {
+        if (next.length === 0) {
+          setCurrentFamily(undefined);
+          setCurrentData([]);
+          navigate("/");
+        } else {
+          const newId = next[idx] ?? next[idx - 1];
+          navigate(`/${newId}`);
+        }
+      }
+    },
+    [
+      familyId,
+      familyTabIds,
+      navigate,
+      removeFamilyTab,
+      setCurrentData,
+      setCurrentFamily,
+    ],
+  );
+
+  const closeAllFamilyTabs = useCallback(() => {
+    clearFamilyTabs();
+    setCurrentFamily(undefined);
+    setCurrentData([]);
+    navigate("/");
+  }, [clearFamilyTabs, navigate, setCurrentData, setCurrentFamily]);
 
   useEffect(() => {
     setDisplayColumns(currentFamily?.fields?.map((f) => f.name) ?? []);
   }, [currentFamily]);
 
+  const tabsValue =
+    familyId && familyTabIds.includes(familyId)
+      ? familyId
+      : (familyTabIds[0] ?? "");
+
   return (
     <Layout>
-      {!!currentFamily?.fields?.length && (
-        <div className="flex flex-col gap-4">
-          <div className="flex gap-4 items-center px-4">
-            <div className="flex-1">
-              <Title order={3}>{currentFamily?.displaynames}</Title>
-            </div>
-            <Input
-              placeholder="Filter"
-              onChange={(e) => setFilter(e.target.value)}
-            />
-            <Input
-              placeholder="Fill Query String and Press Enter"
-              className="w-96"
-              ref={queryStringRef}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  fetchData(queryStringRef.current?.value ?? "", familyId);
-                }
+      {familyTabIds.length > 0 && (
+        <div className="flex flex-row items-center gap-2 border-b border-gray-200 dark:border-gray-700 mb-4">
+          <ScrollArea
+            scrollbars="x"
+            type="never"
+            className="flex-1 min-w-0"
+          >
+            <Tabs
+              value={tabsValue}
+              onChange={(value) => value && navigate(`/${value}`)}
+              classNames={{ list: "flex-nowrap items-center" }}
+              styles={{
+                root: { width: "max-content" },
+                list: { flexWrap: "nowrap" },
               }}
-              rightSection={<IconSearch />}
-            />
-
-            <Button onClick={open}>
-              <IconColumns />
-            </Button>
-            <Button color="green" onClick={() => fetchData("")}>
-              <IconRefresh />
-            </Button>
-            <div id="open-create-modal"></div>
-          </div>
-          <div className="p-4">
-            <FamilyDataViewer
-              filter={debouncedFilter}
-              displayColumns={debouncedDisplayColumns}
-            />
-          </div>
+            >
+              <Tabs.List className="flex-nowrap inline-flex">
+                {familyTabIds.map((id) => {
+                  const fam = families.find((f) => f.id === id);
+                  const label = fam?.displaynames ?? id;
+                  return (
+                    <Tabs.Tab
+                      key={id}
+                      value={id}
+                      title={label}
+                      styles={{
+                        tab: {
+                          flexShrink: 0,
+                          whiteSpace: "nowrap",
+                        },
+                        tabLabel: { overflow: "visible", textOverflow: "clip" },
+                      }}
+                      rightSection={
+                        <ActionIcon
+                          component="span"
+                          size="sm"
+                          variant="subtle"
+                          color="gray"
+                          aria-label={`Close ${label}`}
+                          onClick={(e) => closeFamilyTab(e, id)}
+                        >
+                          <IconX size={14} stroke={1.5} />
+                        </ActionIcon>
+                      }
+                    >
+                      {label}
+                    </Tabs.Tab>
+                  );
+                })}
+              </Tabs.List>
+            </Tabs>
+          </ScrollArea>
+          <Tooltip label="Close all tabs">
+            <ActionIcon
+              variant="light"
+              color="gray"
+              size="lg"
+              radius="xl"
+              className="shrink-0 shadow-md"
+              aria-label="Close all tabs"
+              onClick={closeAllFamilyTabs}
+            >
+              <IconX size={18} stroke={1.5} />
+            </ActionIcon>
+          </Tooltip>
         </div>
+      )}
+      {familyId && !!families.length && (
+        <Box pos="relative" className="min-h-[calc(100vh-12rem)]">
+          <LoadingOverlay
+            visible={familyViewLoading}
+            zIndex={200}
+            overlayProps={{ blur: 2 }}
+            loaderProps={{ type: "bars" }}
+          />
+          {!!currentFamily?.fields?.length && (
+            <div className="flex flex-col gap-4">
+              <div className="flex gap-4 items-center px-4">
+                <div className="flex-1">
+                  <Title order={3}>{currentFamily?.displaynames}</Title>
+                </div>
+                <Input
+                  placeholder="Filter"
+                  onChange={(e) => setFilter(e.target.value)}
+                />
+                <Input
+                  placeholder="Fill Query String and Press Enter"
+                  className="w-96"
+                  ref={queryStringRef}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      fetchData(queryStringRef.current?.value ?? "", familyId);
+                    }
+                  }}
+                  rightSection={<IconSearch />}
+                />
+
+                <Button onClick={open}>
+                  <IconColumns />
+                </Button>
+                <Button color="green" onClick={() => fetchData("")}>
+                  <IconRefresh />
+                </Button>
+                <div id="open-create-modal"></div>
+              </div>
+              <div className="p-4">
+                <FamilyDataViewer
+                  filter={debouncedFilter}
+                  displayColumns={debouncedDisplayColumns}
+                />
+              </div>
+            </div>
+          )}
+        </Box>
       )}
       <Modal
         size={"lg"}
@@ -526,7 +687,7 @@ export const Home = () => {
             onChange={(e) => {
               if (e.target.checked) {
                 setDisplayColumns(
-                  currentFamily?.fields?.map((f) => f.name) ?? []
+                  currentFamily?.fields?.map((f) => f.name) ?? [],
                 );
               } else {
                 setDisplayColumns([]);
@@ -551,7 +712,7 @@ export const Home = () => {
                     setDisplayColumns([...displayColumns, field.name]);
                   } else {
                     setDisplayColumns(
-                      displayColumns.filter((c) => c !== field.name)
+                      displayColumns.filter((c) => c !== field.name),
                     );
                   }
                 }}

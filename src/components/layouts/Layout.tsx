@@ -22,8 +22,9 @@ export function Layout({ children }: PropsWithChildren) {
   const setApiUrl = useQuillDashboardStore((state) => state.setApiUrl);
   const setFamilies = useQuillDashboardStore((state) => state.setFamilies);
   const setCurrentFamily = useQuillDashboardStore(
-    (state) => state.setCurrentFamily
+    (state) => state.setCurrentFamily,
   );
+  const addFamilyTab = useQuillDashboardStore((state) => state.addFamilyTab);
   const urlRef = useRef<HTMLInputElement>(null);
 
   const connect = async () => {
@@ -44,6 +45,13 @@ export function Layout({ children }: PropsWithChildren) {
       header={{ height: 60 }}
       footer={{ height: 60 }}
       padding="md"
+      styles={{
+        main: {
+          paddingTop: 60,
+          paddingLeft: 0,
+          paddingRight: 0,
+        },
+      }}
     >
       <AppShell.Header>
         <Group h="100%" px="md">
@@ -99,6 +107,7 @@ export function Layout({ children }: PropsWithChildren) {
                 className="cursor-pointer"
                 order={4}
                 onClick={async () => {
+                  addFamilyTab(family.id);
                   setCurrentFamily(family);
                   navigate(`/${family.id}`);
                   close();
