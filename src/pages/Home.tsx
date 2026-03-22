@@ -48,6 +48,11 @@ import { PortalSlot } from "../components/PortalSlot";
 import { deleteFamily } from "../service/delete";
 import { useNavigate, useParams } from "react-router";
 
+const DEFAULT_TABLE_FIELD_NAMES = new Set([
+  "display_name",
+  "last_update_date",
+]);
+
 const FamilyDataViewer = memo(
   ({
     filter,
@@ -80,12 +85,81 @@ const FamilyDataViewer = memo(
     }, [currentData, filter]);
 
     const columns: ColumnDef<any>[] = useMemo(() => {
-      return [
-        ...currentFamily!.fields.filter((f) =>
-          (!!displayColumns?.length
-            ? displayColumns
-            : currentFamily!.fields.map((f) => f.name)
-          )?.includes(f.name),
+      const effectiveNames = !displayColumns?.length
+        ? currentFamily!.fields.map((f) => f.name)
+        : displayColumns;
+
+      const displayNameColumn: ColumnDef<any> = {
+        id: "display_name",
+        accessorKey: "display_name",
+        header: () => (
+          <div className="flex flex-col items-start gap-1 min-w-52">
+            <span className="font-bold">Display Name</span>
+            <span className="font-bold text-gray-400">string</span>
+          </div>
+        ),
+        cell: ({ getValue }) => {
+          const v = getValue();
+          if (v === null || v === undefined) {
+            return (
+              <div>
+                <span className="italic">-</span>
+              </div>
+            );
+          }
+          if (typeof v === "boolean") {
+            return (
+              <div>
+                <span>{v ? "True" : "False"}</span>
+              </div>
+            );
+          }
+          return (
+            <div>
+              <span>{String(v)}</span>
+            </div>
+          );
+        },
+      };
+
+      const lastUpdateColumn: ColumnDef<any> = {
+        id: "last_update_date",
+        accessorKey: "last_update_date",
+        header: () => (
+          <div className="flex flex-col items-start gap-1 min-w-52">
+            <span className="font-bold">Last Update</span>
+            <span className="font-bold text-gray-400">string</span>
+          </div>
+        ),
+        cell: ({ getValue }) => {
+          const v = getValue();
+          if (v === null || v === undefined) {
+            return (
+              <div>
+                <span className="italic">-</span>
+              </div>
+            );
+          }
+          if (typeof v === "boolean") {
+            return (
+              <div>
+                <span>{v ? "True" : "False"}</span>
+              </div>
+            );
+          }
+          return (
+            <div>
+              <span>{String(v)}</span>
+            </div>
+          );
+        },
+      };
+
+      const dynamicColumns: ColumnDef<any>[] = [
+        ...currentFamily!.fields.filter(
+          (f) =>
+            !DEFAULT_TABLE_FIELD_NAMES.has(f.name) &&
+            effectiveNames.includes(f.name),
         ),
       ]
         .sort((a, b) => (a.colorder ?? 10000) - (b.colorder ?? 10000))
@@ -133,6 +207,8 @@ const FamilyDataViewer = memo(
             </div>
           ),
         }));
+
+      return [displayNameColumn, ...dynamicColumns, lastUpdateColumn];
     }, [currentFamily, families, displayColumns]);
 
     const table = useReactTable({
@@ -683,18 +759,30 @@ export const Home = () => {
         <div className="flex flex-col gap-2">
           <Checkbox
             label="All"
-            checked={displayColumns.length === currentFamily?.fields?.length}
+            checked={(() => {
+              const toggleable =
+                currentFamily?.fields?.filter(
+                  (f) => !DEFAULT_TABLE_FIELD_NAMES.has(f.name),
+                ) ?? [];
+              return (
+                toggleable.length > 0 &&
+                toggleable.every((f) => displayColumns.includes(f.name))
+              );
+            })()}
             onChange={(e) => {
+              const toggleable =
+                currentFamily?.fields?.filter(
+                  (f) => !DEFAULT_TABLE_FIELD_NAMES.has(f.name),
+                ) ?? [];
               if (e.target.checked) {
-                setDisplayColumns(
-                  currentFamily?.fields?.map((f) => f.name) ?? [],
-                );
+                setDisplayColumns(toggleable.map((f) => f.name));
               } else {
                 setDisplayColumns([]);
               }
             }}
           />
           {currentFamily?.fields
+            ?.filter((f) => !DEFAULT_TABLE_FIELD_NAMES.has(f.name))
             ?.sort((a, b) => (a.colorder ?? 10000) - (b.colorder ?? 10000))
             .map((field) => (
               <Checkbox
