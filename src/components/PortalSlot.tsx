@@ -13,7 +13,7 @@ export function PortalSlot({
   useEffect(() => {
     const el = document.getElementById(slotId);
     setContainer(el);
-  }, []);
+  }, [slotId]);
 
   if (!container) return null;
 

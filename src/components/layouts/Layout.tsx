@@ -37,7 +37,7 @@ export function Layout({ children }: PropsWithChildren) {
     fetch(`${apiUrl}/families`).then(async (res) => {
       setFamilies(await res.json());
     });
-  }, [apiUrl]);
+  }, [apiUrl, setFamilies]);
 
   return (
     <AppShell

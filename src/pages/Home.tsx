@@ -133,7 +133,7 @@ const FamilyDataViewer = memo(
             </div>
           ),
         }));
-    }, [currentFamily?.fields, displayColumns]);
+    }, [currentFamily, families, displayColumns]);
 
     const table = useReactTable({
       data,
@@ -162,7 +162,7 @@ const FamilyDataViewer = memo(
     const onUpdate = useCallback((data: any) => {
       setSelectedData(data);
       openUpdateModal();
-    }, []);
+    }, [openUpdateModal]);
 
     return (
       <div className="py-0 h-[calc(100vh_-_144px)] max-w-full overflow-auto">
